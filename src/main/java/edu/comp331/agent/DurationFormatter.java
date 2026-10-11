@@ -1,8 +1,18 @@
 package edu.comp331.agent;
 
+/**
+ *
+ * 
+ */
 public final class DurationFormatter {
     private DurationFormatter() {}
 
+    /**
+     *
+     *
+     *
+     * @throws IllegalArgumentException if totalSeconds is negative
+     */
     public static String format(long totalSeconds) {
         if (totalSeconds < 0) {
             throw new IllegalArgumentException("totalSeconds must be >= 0, got " + totalSeconds);
