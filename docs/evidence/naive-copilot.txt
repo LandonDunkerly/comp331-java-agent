@@ -1,0 +1,33 @@
+    // make a method that turns seconds into a nice time string
+    public static String formatDuration(long seconds) {
+        long hours = seconds / 3600;
+        long minutes = (seconds % 3600) / 60;
+        long secs = seconds % 60;
+
+        StringBuilder sb = new StringBuilder();
+        if (hours > 0) {
+            sb.append(hours).append(" hour").append(hours > 1 ? "s" : "").append(", ");
+        }
+        if (minutes > 0) {
+            sb.append(minutes).append(" minute").append(minutes > 1 ? "s" : "").append(", ");
+        }
+        sb.append(secs).append(" second").append(secs != 1 ? "s" : "");
+
+        return sb.toString();
+    }
+
+
+
+
+
+
+··•    jshell --class-path target/classes /tmp/check.jsh
+0 -> 0 seconds
+45 -> 45 seconds
+60 -> 1 minute, 0 seconds
+61 -> 1 minute, 1 second
+3600 -> 1 hour, 0 seconds
+3601 -> 1 hour, 1 second
+3723 -> 1 hour, 2 minutes, 3 seconds
+100000 -> 27 hours, 46 minutes, 40 seconds
+-1 -> -1 seconds
