@@ -11,6 +11,7 @@
 - Units are only hours, minutes, seconds (no days).
 - Single space between units, no leading/trailing whitespace.
 - Must not mutate state or print anything.
+- No code comments.
 
 **Edge cases:**
 - `0` -> `"0s"`
