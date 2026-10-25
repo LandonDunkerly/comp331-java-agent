@@ -201,3 +201,137 @@ The explanation of the logic was accurate. One example in it was wrong: Copilot 
 - Inline Copilot comment and suggestion (naive): [docs/evidence/naive-copilot.txt](docs/evidence/naive-copilot.txt)
 - Copilot Chat structured prompt, reply, and explanation before accepting: the four screenshots in `docs/screenshots/` shown in the structured section above
 - Git history above shows each stage as a separate commit.
+
+# Lab 2: Sandbox project and evaluation process
+
+Lab 2: a small Java calculator sandbox with a repeatable JUnit evaluation, used to compare two Copilot-assisted iterations of the code.
+
+## Sandbox
+
+`sandbox/calculator` is a standalone Maven project (Java 17, JUnit 5) containing `Calculator.evaluate(String)`, a recursive-descent arithmetic evaluator. It supports `+ - * /`, parentheses, unary minus, decimals, and ignores whitespace. The specification, in the same format as the Lab 1 spec, is `docs/CALCULATOR_SPEC.md`.
+
+## Running the evaluation
+
+Requires a JDK 17 or newer and Maven 3.9.x. The sandbox has its own `pom.xml`, so run it from its directory. The root `mvn test` does not include it.
+
+```
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
+git clone <repo-url>
+cd comp331-java-agent/sandbox/calculator
+mvn test
+```
+
+Comment check (AC6), run from the repository root. It should print nothing:
+
+```
+grep -rnE '//|/\*' sandbox/calculator/src
+```
+
+## Acceptance criteria
+
+| ID | Criterion | Check | Automated |
+| --- | --- | --- | --- |
+| AC1 | Arithmetic and decimals are correct | `addition`, `subtraction`, `multiplication`, `divisionGivesFraction`, `decimalOperands`, `singleNumber`, `whitespaceIgnored` | Yes |
+| AC2 | Precedence and left-associativity | `multiplicationBeforeAddition`, `divisionBeforeSubtraction`, `subtractionIsLeftAssociative`, `divisionIsLeftAssociative` | Yes |
+| AC3 | Parentheses and unary minus | the parentheses and unary-minus tests, plus `unaryMinusBindsBeforeMultiplication` | Yes |
+| AC4 | Division by zero throws `ArithmeticException` | `divisionByZeroRejected`, `divisionByZeroResultRejected` | Yes |
+| AC5 | Null, blank, or malformed input throws `IllegalArgumentException` | `invalidInputRejected` (20 cases) | Yes |
+| AC6 | No code comments | `grep -rnE '//\|/\*' sandbox/calculator/src` prints nothing | Yes, but run by hand |
+| AC7 | Methods under about 25 lines, readable, final class | Human review | No |
+| AC8 | Behavior matches the intent of the spec | Human review | No |
+
+## Commit history
+
+1. `4d4c297` Calculator sandbox, expanded tests, and the flawed Copilot Iteration 1 (17 expected failures).
+2. `21de5ab` Copilot Iteration 2, which passes all 45 tests.
+
+## Iteration results
+
+Both iterations ran against the same 45 tests. Between the two commits only `Calculator.java` changed in the source tree. `git diff --stat` showed no change to `CalculatorTest.java`, so the tests were not weakened.
+
+| | Iteration 1 (flawed) | Iteration 2 (fixed) |
+| --- | --- | --- |
+| Commit | `4d4c297` | `21de5ab` |
+| Code origin | Copilot Chat (Ask mode), deliberately incomplete | Copilot Chat (Ask mode), given the spec, the flawed code, the tests, and the Maven failure summary |
+| Approach | Splits the string into tokens and evaluates strictly left to right | Recursive-descent parser in a nested `Parser` class |
+| `mvn test` result | `Tests run: 45, Failures: 7, Errors: 10` (17 failing, 28 passing), `BUILD FAILURE` | `Tests run: 45, Failures: 0, Errors: 0`, `BUILD SUCCESS` |
+| Evidence | [calculator-iteration-1.txt](docs/evidence/calculator-iteration-1.txt), [chat](docs/evidence/calculator-iteration-1-chat.txt) | [calculator-iteration-2.txt](docs/evidence/calculator-iteration-2.txt), [chat](docs/evidence/calculator-iteration-2-chat.txt) |
+
+Before Iteration 1, the same 45 tests passed against my earlier calculator: [calculator-baseline-45-tests.txt](docs/evidence/calculator-baseline-45-tests.txt).
+
+I asked Copilot to leave out operator precedence, unary minus, the division-by-zero check, and the check for leftover input. The evaluation caught each of those:
+
+| Flaw I requested | Tests that caught it |
+| --- | --- |
+| No precedence | `multiplicationBeforeAddition` (got 20, expected 14), `divisionBeforeSubtraction` (got 3, expected 8) |
+| No unary minus | `leadingUnaryMinus`, `unaryMinusAfterOperator`, `subtractNegativeOperand`, `negativeZeroEqualsZero`, `doubleMinusIsDoubleNegation`, `negatedParenthesesGroup`, `unaryMinusBindsBeforeMultiplication` (all `NumberFormatException` on `"-"`) |
+| No division-by-zero check | `divisionByZeroRejected` (nothing thrown) |
+| No leftover-input check | `invalidInputRejected` case `"2 3"` (accepted) |
+
+Copilot's first version also had flaws I did not ask for:
+
+- It could not parse parentheses, so `nestedParentheses`, `parenthesesOverridePrecedence` and `parenthesizedNegative` failed with `NumberFormatException` on `"("`. `divisionByZeroResultRejected` failed for the same reason, throwing `NumberFormatException` instead of `ArithmeticException`.
+- `"2+"` crashed with `ArrayIndexOutOfBoundsException` instead of `IllegalArgumentException`.
+- `"1.2e3"` was accepted, because `Double.parseDouble` allows scientific notation.
+
+Copilot did not include the `package` line in its first reply, which would have caused a compile error. I added that line by hand.
+
+## Copilot gap review
+
+After writing my first test set, I asked Copilot (Ask mode) to list edge cases my tests were missing, with the spec and the test class attached and an instruction not to write the implementation or change my tests. The prompt and reply are in [calculator-copilot-gap-review.txt](docs/evidence/calculator-copilot-gap-review.txt). Copilot suggested 18 cases. I added 5, and the 40 existing cases plus these 5 gave the 45-test suite (`Tests run: 45`, `BUILD SUCCESS`).
+
+## Accepted, rejected, and revised
+
+- Accepted: Copilot's deliberately flawed first version as Iteration 1, with one hand edit (the missing `package` line).
+- Accepted: Copilot's Iteration 2 `Calculator.java` as written, after reading it for comments and the package line, then running `mvn test` and confirming with `git diff --stat` that the tests were untouched.
+- Accepted: five test cases from the gap review: `0/5`, `-(2+3)*2`, and the invalid inputs `"."`, `"1.2e3"` and `"2 - +3"`. Copilot suggested them. Each was verified with `mvn test`.
+- Rejected: `((2+3)`, `(2+3))` and `3+`, which duplicate my existing `"(2+3"`, `"2+3)"` and `"2+"`.
+- Rejected: `2--3`, `2+-3` and `1/-2`, which are close to my existing `"1 - -1"` and `"2*-3"`.
+- Rejected: `0.0000000001 + 0.0000000002`, because my `DELTA` of `1e-9` would let it pass even if the result were 0.
+- Rejected: `1/0.0`. Copilot's reasoning implied an integer-zero path, but the parser reads every number as a `double`.
+- Not added: `8/2*3`, `5-(3+2)*2`, `-0.5 + 0.5` and `((2+3))`, which I judged covered by my existing tests. `2(3+4)` has no test of its own. I ran it in `jshell` against Iteration 2 and it throws `IllegalArgumentException`, because `(` is not an operator, the same check that rejects `"2 3"`.
+- Added by me: the original calculator and its original 24 test methods (40 cases), before Copilot was involved.
+
+## What the evaluation caught and did not catch
+
+Caught:
+
+- All four flaws I asked Copilot to introduce (see the table above).
+- Two flaws I did not ask for: no parenthesis support, and `"2+"` crashing with `ArrayIndexOutOfBoundsException`.
+- `"1.2e3"` being accepted. This case came from Copilot's gap review, so that suggestion exposed a real flaw.
+
+Not caught:
+
+- **Wrong exception types were mostly invisible.** `NumberFormatException` is a subclass of `IllegalArgumentException`, so `assertThrows(IllegalArgumentException.class, ...)` accepted it. Against Iteration 1, only 3 of the 20 `invalidInputRejected` cases failed, even though that version could not parse parentheses at all. A crash and a deliberate rejection look the same to this test.
+- **Method length.** The spec says methods should be under about 25 lines. Iteration 2's `parseFactor` is about 36 lines. No test checks this, so it is a human-review item.
+- **Untested inputs.** No test covers very long digit strings, deeply nested parentheses, or non-ASCII digits. I did not run any of these, so I do not know how the parser behaves.
+- **Readability and spec intent** (AC7, AC8).
+
+## Connection to the Lab 1 specification
+
+`docs/CALCULATOR_SPEC.md` uses the same format as `docs/TASK_SPEC.md` (goal, inputs, outputs, constraints, edge cases, acceptance criteria), and carries over the Lab 1 constraints.
+
+| Lab 1 criterion | Lab 2 enforcement |
+| --- | --- |
+| Cases covered by JUnit tests that pass via `mvn test` | Automated (AC1 to AC5) |
+| Java 17, no external libraries | Automated: `maven.compiler.release` is 17 and the only dependency is JUnit (test scope) |
+| No code comments | Automated check (AC6), run by hand with `grep` |
+| Final utility class | Human review (AC7) |
+| Method under about 25 lines | Human review (AC7) |
+| Behavior matches the intent of the spec | Human review (AC8) |
+
+## Verification
+
+- `mvn test` on the original calculator and tests: `Tests run: 40, Failures: 0, Errors: 0, Skipped: 0`.
+- After adding the Copilot-suggested cases: `Tests run: 45, Failures: 0, Errors: 0, Skipped: 0`.
+- Iteration 1: `Tests run: 45, Failures: 7, Errors: 10`, `BUILD FAILURE`.
+- Iteration 2: `Tests run: 45, Failures: 0, Errors: 0, Skipped: 0`, `BUILD SUCCESS`.
+- Comment check: `grep -rnE '//|/\*' sandbox/calculator/src` printed nothing.
+
+## AI-assisted development evidence
+
+- Copilot gap review (prompt and reply): [docs/evidence/calculator-copilot-gap-review.txt](docs/evidence/calculator-copilot-gap-review.txt)
+- Iteration 1 and Iteration 2 Copilot chats: [calculator-iteration-1-chat.txt](docs/evidence/calculator-iteration-1-chat.txt), [calculator-iteration-2-chat.txt](docs/evidence/calculator-iteration-2-chat.txt)
+- Maven output for each run: the `calculator-*.txt` files in `docs/evidence/`.
+- Passing run screenshot: `docs/screenshots/TestsPassLab2.png`.
+- Git history above shows each iteration as a separate commit.
