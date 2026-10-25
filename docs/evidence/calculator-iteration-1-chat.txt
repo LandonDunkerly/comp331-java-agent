@@ -1,0 +1,36 @@
+Using the attached spec, write a quick first-pass Java class edu.comp331.sandbox.calculator.Calculator
+with a public static double evaluate(String expression) method.
+Make it deliberately incomplete: evaluate strictly left to right with no operator precedence,
+no unary minus, no division-by-zero check, and no check for leftover input after parsing.
+It must still compile. Keep it short, final class, no comments. Output only the class.
+
+I’ll provide the minimal Java class matching your requested deliberately incomplete first-pass implementation, keeping it compilable and brief.
+
+public final class Calculator {
+public static double evaluate(String expression) {
+if (expression == null || expression.trim().isEmpty()) {
+throw new IllegalArgumentException("Invalid expression");
+}
+    String[] tokens = expression.replace(" ", "").split("(?=[+\\-*/()])|(?<=[+\\-*/()])");
+    double result = Double.parseDouble(tokens[0]);
+
+    for (int i = 1; i < tokens.length; i++) {
+        String token = tokens[i];
+        if (token.isEmpty()) continue;
+        if (token.equals("+") || token.equals("-") || token.equals("*") || token.equals("/")) {
+            double value = Double.parseDouble(tokens[++i]);
+            switch (token) {
+                case "+": result += value; break;
+                case "-": result -= value; break;
+                case "*": result *= value; break;
+                case "/": result /= value; break;
+                default: throw new IllegalArgumentException("Invalid operator");
+            }
+        } else {
+            result = Double.parseDouble(token);
+        }
+    }
+
+    return result;
+}
+}

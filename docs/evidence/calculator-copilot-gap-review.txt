@@ -1,0 +1,90 @@
+Me:
+
+Here is my task spec and my current JUnit 5 test class for a Java expression calculator.
+Do not write the implementation and do not change my existing tests.
+List edge cases or invalid inputs my tests are missing, grouped as normal / edge / invalid.
+For each one, give the expression, the expected result or exception, and why it matters.
+
+
+Copilot:
+
+I’ll review your spec and the existing JUnit cases to identify the missing behaviors and organize them into the categories you asked for.
+
+Missing cases to add, grouped by type
+I’m assuming “normal” = valid arithmetic not already covered, “edge” = boundary/tricky behavior, and “invalid” = malformed or unsupported input.
+
+Normal valid expressions
+0/5 → 0.0
+
+Why it matters: verifies that zero dividend is valid and does not trigger a parse error or divide-by-zero case when the denominator is nonzero. This is a common boundary condition.
+8/2*3 → 12.0
+
+Why it matters: checks left-associative handling across multiplication and division in the same chain, not just within a single operator type.
+5-(3+2)*2 → -5.0
+
+Why it matters: exercises combined precedence across subtraction, parentheses, and multiplication in one expression; it confirms the parser respects the full precedence tree.
+-(2+3)*2 → -10.0
+
+Why it matters: verifies unary minus applies before multiplication and correctly binds to a parenthesized group.
+Edge cases
+2--3 → 5.0
+
+Why it matters: this is a very common adjacent-operator case. It ensures a minus after another minus is parsed as subtraction with a negative operand, not as an invalid token sequence.
+2+-3 → -1.0
+
+Why it matters: confirms that + followed by a unary minus is handled correctly, which often trips naive parsers.
+1/-2 → -0.5
+
+Why it matters: ensures negative divisors work and are not rejected or treated as malformed input.
+-0.5 + 0.5 → 0.0
+
+Why it matters: checks that small negative/positive decimal values can cancel correctly and that negative zero is handled predictably.
+0.0000000001 + 0.0000000002 → 3.0E-10 (approximately 3e-10)
+
+Why it matters: validates floating-point arithmetic with very small decimal inputs, which often exposes precision assumptions and rounding issues.
+((2+3)) → 5.0
+
+Why it matters: extra matching parentheses should still be valid if the expression is otherwise well-formed; this checks for overly strict token validation.
+Invalid inputs
+. → IllegalArgumentException
+
+Why it matters: a lone decimal point is malformed and should not be accepted as a number.
+2(3+4) → IllegalArgumentException
+
+Why it matters: implicit multiplication is not allowed; this checks that the parser does not silently accept adjacent token sequences that are not valid arithmetic syntax.
+(2+3)) → IllegalArgumentException
+
+Why it matters: ensures unmatched closing parentheses are rejected rather than ignored.
+((2+3) → IllegalArgumentException
+
+Why it matters: ensures missing closing parentheses are rejected. This is a very common syntax error.
+3+ → IllegalArgumentException
+
+Why it matters: detects trailing operators, which are structurally invalid even if the earlier tokens are valid.
+1.2e3 → IllegalArgumentException
+
+Why it matters: scientific notation is not part of the allowed grammar according to the spec; this confirms the parser only accepts plain decimal literals.
+2 + + 3 is already covered in your tests, but a close cousin worth considering is:
+
+2 - +3 → IllegalArgumentException
+Why it matters: confirms unary plus is rejected after an operator, not just after a number.
+1/0.0 → ArithmeticException
+
+Why it matters: this is a division-by-zero case with a floating-point zero, not just an integer zero literal. It ensures zero detection is not limited to integer parsing.
+Quick summary
+Your current suite is strong on:
+
+basic arithmetic
+precedence
+parentheses
+unary minus
+zero division
+malformed token sequences
+The biggest gaps are:
+
+adjacent operators like 2--3 and 2+-3
+explicit negative divisor handling
+implicit multiplication rejection
+unmatched parentheses and trailing operator cases
+decimal edge values and very small floating-point numbers
+If you want, I can turn this into a compact “missing tests checklist” that matches your existing JUnit naming style without changing your test class.
