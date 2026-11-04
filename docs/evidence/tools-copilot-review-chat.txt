@@ -1,0 +1,44 @@
+Review this Sandbox class for ways a user-provided path could escape the sandbox directory. List specific example inputs that would bypass it and say which line allows each one. Don’t rewrite the class.
+
+I’m examining the sandbox path checks to identify the exact bypass conditions and the line that permits each one.
+
+Findings
+There is a real escape path in Sandbox.resolve, but it is not the simple Fall case. A plain traversal like ../../etc/passwd is rejected by the guard at Sandbox.java:23-26.
+
+The actual bypass is a symlink + .. pattern, because the code normalizes the path before checking real filesystem ancestry:
+
+Sandbox.java:23 does root.resolve(userPath).normalize()
+Sandbox.java:24-26 then checks only target.startsWith(root)
+That means a path can look safe after normalization even when the real filesystem traversal escapes through a symlink.
+
+Example inputs that bypass it
+Assume the sandbox root is /tmp/sandbox, and inside it you create a symlink such as:
+
+/tmp/sandbox/link -> /
+/tmp/sandbox/outer -> /etc
+Then these inputs can escape:
+
+link/../etc/passwd
+
+target becomes /tmp/sandbox/etc/passwd after normalize()
+This passes the check at Sandbox.java:24
+But the real path through the symlink resolves to passwd
+The later check at Sandbox.java:27-31 is too late and can miss it because the symlinked component was erased by normalization
+outer/../tmp/pwned
+
+Normalized form: /tmp/sandbox/tmp/pwned
+Line 24 accepts it because it still starts with the sandbox root
+Actual resolution follows the symlink outer -> /etc and escapes outside the root
+dir/../secret.txt where /tmp/sandbox/dir -> /
+
+Normalized form: /tmp/sandbox/secret.txt
+Allowed by line 24
+Real path resolves through / and escapes, but the normalized path hides the symlink
+Which line allows each bypass?
+In each case, the enabling line is:
+
+Sandbox.java:23: normalize() collapses the dangerous symlink+.. sequence
+Sandbox.java:24: startsWith(root) then accepts the normalized path
+The check in Sandbox.java:27-31 only examines the nearest existing ancestor of the normalized path, not the real resolved path through the symlink, so it misses the escape.
+
+I did not rewrite the class.

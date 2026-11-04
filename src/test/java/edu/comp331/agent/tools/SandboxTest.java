@@ -150,4 +150,10 @@ class SandboxTest {
         symlinkOrSkip(root.resolve("escape-dir"), outside);
         assertBlocked("escape-dir/new.txt");
     }
+    
+    @Test
+    void symlinkFollowedByDotDotStaysInsideSandbox() throws IOException {
+        symlinkOrSkip(root.resolve("outer"), outside);
+        assertEquals(root.resolve("secret.txt"), sandbox.resolve("outer/../secret.txt"));
+    }
 }
