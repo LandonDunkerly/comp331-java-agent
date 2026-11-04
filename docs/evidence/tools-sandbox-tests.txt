@@ -1,0 +1,15 @@
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running edu.comp331.agent.tools.SandboxTest
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.115 s -- in edu.comp331.agent.tools.SandboxTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 23, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.425 s
+[INFO] Finished at: 2026-11-03T23:08:20-05:00
+[INFO] ------------------------------------------------------------------------

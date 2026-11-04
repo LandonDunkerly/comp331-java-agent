@@ -1,0 +1,137 @@
+I’m adding a tool layer to a Java 17 Maven project, package edu.comp331.agent.tools. Propose (1) a small AgentTool interface with name(), description() and execute(...), and (2) a Sandbox class that resolves user-provided paths against one root directory using java.nio.file.Path. Show the path-validation logic only, not the tools themselves. Then list JUnit test cases for ../README.md, absolute paths, a/../../b, empty or null paths, symlinks, and sibling directories like calculator-evil, grouped as “allowed” and “blocked”.
+
+
+I’ll inspect the project’s existing Java conventions and then draft the minimal tool API and sandbox validation logic in the same style, along with the specific security test cases you asked for.
+
+package edu.comp331.agent.tools;
+
+import java.nio.file.Path;
+
+public interface AgentTool {
+    String name();
+    String description();
+    Object execute(Path sandboxRoot, String userPath, Object... args);
+}
+
+This keeps the contract tiny and lets each tool decide how to interpret the path and optional arguments without exposing a big framework.
+
+2) Sandbox path validation logic
+
+package edu.comp331.agent.tools;
+
+import java.io.IOException;
+import java.nio.file.*;
+import java.util.Objects;
+
+public final class Sandbox {
+    private final Path root;
+
+    public Sandbox(Path root) {
+        this.root = Objects.requireNonNull(root, "root")
+                .toAbsolutePath()
+                .normalize();
+    }
+
+    public Path resolve(String userPath) {
+        if (userPath == null || userPath.isBlank()) {
+            throw new IllegalArgumentException("Path is required");
+        }
+
+        Path candidate = Path.of(userPath);
+        Path normalized = candidate.isAbsolute()
+                ? candidate
+                : root.resolve(candidate).normalize();
+
+        Path realRoot;
+        try {
+            realRoot = root.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Invalid sandbox root: " + root, e);
+        }
+
+        Path realCandidate;
+        try {
+            realCandidate = normalized.toRealPath(LinkOption.NOFOLLOW_LINKS);
+        } catch (NoSuchFileException e) {
+            // This allows a future file path as long as the normalized path itself stays inside root.
+            realCandidate = normalized;
+        } catch (IOException e) {
+            throw new IllegalArgumentException("Invalid path: " + userPath, e);
+        }
+
+        if (!realCandidate.startsWith(realRoot)) {
+            throw new IllegalArgumentException("Path escapes sandbox root: " + userPath);
+        }
+
+        return realCandidate;
+    }
+}
+
+The key rules are:
+
+null/blank input is rejected
+relative paths are resolved against one root
+absolute paths are only allowed if they still resolve under that root
+.. traversal is rejected by startsWith(root)
+symlinks are checked with toRealPath(...) so a link cannot escape the sandbox
+
+3) JUnit test cases by category
+Allowed
+These should succeed and return a path inside the sandbox root:
+
+resolve_shouldAllow_readme_at_root
+input: "README.md"
+resolve_shouldAllow_relative_path_with_dot
+input: "./README.md"
+resolve_shouldAllow_nested_path_inside_root
+input: "docs/guide.md"
+resolve_shouldAllow_normalized_relative_path
+input: "a/../README.md"
+resolve_shouldAllow_absolute_path_inside_root
+input: root.resolve("README.md").toString()
+resolve_shouldAllow_symlink_inside_root_pointing_inside_root
+create link -> README.md under the root and resolve it
+Blocked
+These should throw IllegalArgumentException:
+
+resolve_shouldBlock_parent_traversal
+input: "../README.md"
+resolve_shouldBlock_absolute_path_outside_root
+input: "/etc/passwd"
+resolve_shouldBlock_escape_via_dotdot
+input: "a/../../b"
+resolve_shouldBlock_null_path
+input: null
+resolve_shouldBlock_blank_path
+input: "" and "   "
+resolve_shouldBlock_symlink_escape
+symlink inside root pointing to ../outside/secret.txt
+resolve_shouldBlock_sibling_directory
+input: root.resolveSibling("calculator-evil").toString()
+resolve_shouldBlock_sibling_directory_relative
+input: "../calculator-evil/file.txt"
+A compact JUnit 5 set would look like:
+
+@Test
+void resolve_shouldAllow_readme_at_root() {
+    Path root = Path.of("/tmp/sandbox");
+    Sandbox sandbox = new Sandbox(root);
+
+    assertEquals(root.resolve("README.md").normalize(), sandbox.resolve("README.md"));
+}
+
+@Test
+void resolve_shouldBlock_parent_traversal() {
+    Path root = Path.of("/tmp/sandbox");
+    Sandbox sandbox = new Sandbox(root);
+
+    assertThrows(IllegalArgumentException.class, () -> sandbox.resolve("../README.md"));
+}
+
+@Test
+void resolve_shouldBlock_null_path() {
+    Sandbox sandbox = new Sandbox(Path.of("/tmp/sandbox"));
+    assertThrows(IllegalArgumentException.class, () -> sandbox.resolve(null));
+}
+
+If you want, I can turn this into a concrete AgentTool/Sandbox implementation and a complete JUnit 5 test class for your Maven project.
