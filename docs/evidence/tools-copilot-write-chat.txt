@@ -1,0 +1,101 @@
+I’m writing a WriteFileTool for a Java coding agent. It creates or overwrites a UTF-8 text file inside a sandbox directory, creating parent directories as needed. Arguments are file_path and content. Blocked calls return an error string instead of throwing. List JUnit test cases for success and blocked behavior, including path traversal, absolute paths, directories, missing arguments, and symlinks. Verify blocked cases by checking that nothing was written outside the sandbox. Don’t write the implementation.
+
+I’m reviewing the existing tool and test patterns in this repo so I can give you the exact JUnit cases to add without implementing the tool itself.
+
+I’ve confirmed the sandbox contract and I’m matching the tests to the repo’s existing JUnit style so the cases fit the agent tool pattern precisely.
+
+JUnit cases for WriteFileTool
+This should follow the repo’s sandbox pattern in Sandbox.java and the existing test style in SandboxTest.java, but with one key change: blocked writes should return an error string rather than throw.
+
+Success cases
+writesTextFileAtSandboxRoot
+
+file_path = "note.txt", content = "hello"
+Assert: no exception; file is created under sandbox root; file content equals "hello"; UTF-8 is preserved for non-ASCII values (e.g. "héllo ☃")
+createsParentDirectoriesWhenNeeded
+
+file_path = "nested/dir/output.txt", content = "ok"
+Assert: parent directories are created automatically; file exists; content matches
+overwritesExistingFile
+
+create existing.txt with "old"
+call with same path and "new"
+Assert: final content is "new" instead of "old"
+writesEmptyContent
+
+file_path = "empty.txt", content = ""
+Assert: file is created and contains empty content; this is allowed if empty string is treated as a valid payload
+writesLongUtf8Content
+
+content includes multi-byte characters and newline sequences
+Assert: file content equals the exact UTF-8 input; no mangling
+Blocked cases (error string, not exception)
+For every blocked case, use a helper pattern like this conceptually:
+
+call tool.execute(Map.of("file_path", ..., "content", "malicious"))
+assert result.startsWith("Error:")
+assert !Files.exists(outsideTarget) or that preexisting outside content is unchanged
+assert no file is created outside the sandbox
+Path traversal and absolute path checks
+blocksParentTraversal
+
+file_path = "../outside/escape.txt"
+Assert: error result; outside file unchanged/not created
+blocksTraversalAfterNestedDirectory
+
+file_path = "sub/../../outside/escape.txt"
+Assert: error result; outside path untouched
+blocksAbsolutePathOutsideSandbox
+
+file_path = outside.resolve("escape.txt").toString()
+Assert: error result; no write outside root
+blocksAbsolutePathToSandboxSibling
+
+file_path = root.resolveSibling("sibling").resolve("escape.txt").toString()
+Assert: error result; sibling directory remains unchanged
+blocksRootEscapeViaDotDotOnAbsolutePath
+
+file_path = root + "/../../outside/escape.txt"
+Assert: blocked and outside file remains untouched
+Directory and argument validation
+blocksDirectoryTarget
+file_path = "docs" or "nested/dir"
+If it resolves to an existing directory, assert: error string and no file created where directory was
+blocksMissingFilePathArgument
+missing "file_path" key in args
+Assert: error string returned, no file created anywhere
+blocksBlankFilePathArgument
+file_path = "" or "   "
+Assert: error string, no write attempted
+blocksMissingContentArgument
+missing "content" key
+Assert: error string only; no file created
+blocksNullArgsMap
+args = null
+Assert: error string, no writes
+Symlink checks
+blocksSymlinkToOutsideFile
+create a symlink inside sandbox pointing to outside/secret.txt
+call with file_path = "escape-link" or "escape-link.txt"
+Assert: blocked; outside file stays unchanged
+blocksWriteThroughSymlinkedDirectoryOutsideSandbox
+create symlink root/escape-dir -> outside
+call with file_path = "escape-dir/evil.txt"
+Assert: blocked; no new file appears under outside
+blocksSymlinkTraversalWithDotDot
+create symlink root/link_out -> outside
+call with file_path = "link_out/../safe.txt"
+Assert: blocked or normalized according to security rule; verify no write outside sandbox occurs
+Important verification for every blocked case
+For the blocked tests, verify more than “returned an error”:
+
+Use a known outside file path, such as outside/secret.txt
+Save its original content before the call
+After the blocked call:
+assert the result starts with "Error:"
+assert Files.exists(outsideTarget) is unchanged
+if it existed before, assert its contents are unchanged
+if it did not exist before, assert it still does not exist
+This is the critical safety check that proves the tool did not write outside the sandbox even when the path looked malicious.
+
+In short: success tests prove creation/overwrite works inside the sandbox, and blocked tests prove the tool fails closed and preserves all content outside the sandbox.

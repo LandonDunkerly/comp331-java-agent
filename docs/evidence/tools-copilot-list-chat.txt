@@ -1,0 +1,107 @@
+I’m writing a ListFilesTool for a Java coding agent. It lists entries of a directory inside a sandbox with each entry’s name, file size, and whether it is a directory. Blocked calls return an error string. List JUnit test cases for success and blocked behavior, including missing directories, a file passed instead of a directory, path traversal, and symlinks. Don’t write the implementation.
+
+I’m reviewing the existing sandbox and test patterns so the new test cases match the project’s conventions before I draft the JUnit specs.
+
+I’ve confirmed the tool contract: AgentTool.execute(Map<String,String>) returns a String, and the sandbox already enforces root/path safety. I’m matching the new tests to that contract and the existing JUnit style.
+
+JUnit test plan for ListFilesTool
+This should follow the same security style as SandboxTest.java and the string-returning tool contract in AgentTool.java.
+
+The key idea is:
+
+success cases call tool.execute(Map.of("path", ...))
+assert the returned String contains the expected entry names, sizes, and directory flags
+blocked cases assert the returned value is an error string (for example, starts with ERROR: or contains "outside the sandbox" / "not a directory")
+Success / allowed cases
+listsEntriesInsideRootDirectory
+
+create a temp sandbox dir
+create files like README.md, docs/guide.md, and a subdirectory docs
+call with "." or "docs"
+assert the output includes:
+entry name
+file size (matching Files.size(...))
+whether it is a directory (true for directories, false for files)
+listsNestedDirectoryEntries
+
+call with "docs"
+assert it lists guide.md and marks it as not a directory
+assert the subdirectory itself is marked as a directory when presented in the parent listing
+allowsRelativePathNormalization
+
+call with "./docs/../docs" or "docs/../docs"
+assert the result is the same as the canonical "docs" directory listing
+allowsAbsolutePathInsideRoot
+
+pass root.resolve("docs").toString()
+assert success and same output as "docs"
+allowsSymlinkWithinSandboxPointingInsideRoot
+
+create a symlink inside the sandbox pointing to a file or directory inside the sandbox
+call with that symlink path
+assert it is listed as an entry and does not trigger rejection
+Blocked / rejected cases
+rejectsMissingDirectory
+
+call with "missing-dir" or "docs/missing"
+assert the result is an error string and contains a “not found” / “missing” message
+rejectsFilePassedInsteadOfDirectory
+
+call with "README.md" when it is a file
+assert the result is an error string and mentions that the path must be a directory
+rejectsPathTraversal
+
+call with "../outside", "docs/../../outside", or "a/../../b"
+assert it returns an error string instead of listing outside content
+rejectsAbsolutePathOutsideSandbox
+
+call with an absolute path under a sibling directory or outside the temp root
+assert error output
+rejectsSymlinkEscapingSandbox
+
+create a symlink inside the sandbox that points outside the root
+call with that symlink path
+assert the tool rejects it and returns an error string
+rejectsBlankOrNullPath
+
+call with null / "" / whitespace
+assert error output if the tool validates before filesystem access
+Example JUnit skeleton
+This is a test structure, not the implementation:
+
+@Test
+void listsEntriesInsideRootDirectory() {
+    // arrange temp sandbox with README.md and docs/
+    // act: execute tool on "."
+    // assert: output contains README.md, docs, file sizes, and isDirectory flags
+}
+
+@Test
+void rejectsMissingDirectory() {
+    // arrange
+    // act: execute tool on "missing-dir"
+    // assert: result is an error string
+}
+
+@Test
+void rejectsFilePassedInsteadOfDirectory() {
+    // arrange file README.md
+    // act: execute tool on "README.md"
+    // assert: result is an error string mentioning "directory"
+}
+
+@Test
+void rejectsPathTraversal() {
+    // arrange
+    // act: execute tool on "../outside"
+    // assert: result is an error string
+}
+
+@Test
+void rejectsSymlinkEscapingSandbox() {
+    // arrange symlink inside root -> outside dir
+    // act: execute tool on symlink path
+    // assert: result is an error string
+}
+
+If you want, I can next turn this into a concrete JUnit 5 test class without implementing the tool logic itself.

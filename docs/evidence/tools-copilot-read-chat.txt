@@ -1,0 +1,52 @@
+I’m writing a ReadFileTool for a Java coding agent. It reads a UTF-8 text file inside a sandbox and returns its content, cut off at 10,000 characters with a truncation notice. Blocked calls return an error string instead of throwing. List JUnit test cases for success and blocked behavior, including the 10,000 character boundary (exactly at, one over, far over), a missing file, a directory passed instead of a file, a missing or blank argument, path traversal, symlinks, and binary files. Don’t write the implementation.
+
+I’m reviewing the existing sandbox tool tests and patterns so I can list the exact JUnit cases you should add without implementing the code.
+
+JUnit cases to add
+I’d keep these in the same style as ListFilesToolTest.java and SandboxTest.java: use temporary sandbox directories, assert on returned strings, and avoid letting blocked calls throw.
+
+Success cases
+Test name	Scenario	Expected result
+readsUtf8TextFileInsideSandbox	Small UTF-8 text file inside sandbox	Returns exact file contents; no truncation notice
+readsFileAtExact10000Chars	File length is exactly 10,000 characters	Returns full content unchanged; no truncation notice
+readsFileAt10001Chars	File length is 10,001 characters	Returns first 10,000 chars plus the truncation notice
+readsFileFarOverLimit	File length is much larger than 10,000 chars	Returns only the first 10,000 chars and includes the truncation notice
+readsNestedFile	File is in a subdirectory inside sandbox	Returns the nested file content successfully
+readsDotRelativePath	Input uses . or ./ relative path	Returns the same content as a normal relative path
+Blocked/unsafe behavior
+Test name	Scenario	Expected result
+missingFileReturnsErrorString	File path does not exist	Returns an error string like “Error: …”; no exception thrown
+directoryPassedInsteadOfFileReturnsErrorString	Input points to a directory, not a regular file	Returns an error string; no exception thrown
+nullArgumentReturnsErrorString	args is null or missing file key	Returns an error string; no exception thrown
+blankArgumentReturnsErrorString	Empty string, whitespace-only, or blank path parameter	Returns an error string; no exception thrown
+parentTraversalReturnsErrorString	path uses .. to escape sandbox	Returns an error string; no exception thrown
+absolutePathOutsideSandboxReturnsErrorString	An absolute path to outside the sandbox	Returns an error string; no exception thrown
+pathWithTraversalAfterSymlinkReturnsErrorString	A symlink resolves outside the sandbox or traversal escapes after a symlink	Returns an error string; no exception thrown
+symlinkToFileOutsideSandboxReturnsErrorString	File symlink points outside the sandbox	Returns an error string; no exception thrown
+symlinkedDirectoryOutsideSandboxReturnsErrorString	Symlinked directory points outside the sandbox	Returns an error string; no exception thrown
+binaryFileReturnsErrorString	File contains binary or non-UTF-8 data	Returns an error string explaining it is not a valid UTF-8 text file; no exception thrown
+A few specifics worth asserting
+For the 10,000-character boundary:
+exactly 10,000: output length equals 10,000, with no truncation note
+10,001: output length equals 10,000 plus the notice text
+much larger: output length still capped at 10,000 plus the notice
+“Blocked calls return an error string instead of throwing” should be asserted with:
+call the tool
+assert the result is a String
+assert it starts with “Error:” or an equivalent error prefix
+assert no exception escapes
+Good naming pattern
+A clean set of method names would be:
+
+readsUtf8TextFileInsideSandbox
+readsFileExactlyAt10000CharLimit
+readsFileAt10001Chars
+readsFileFarAbove10000CharLimit
+missingFileReturnsErrorString
+directoryInsteadOfFileReturnsErrorString
+nullArgumentReturnsErrorString
+blankArgumentReturnsErrorString
+traversalPathReturnsErrorString
+symlinkToOutsideFileReturnsErrorString
+binaryFileReturnsErrorString
+If you want, I can turn this into a concrete JUnit 5 test skeleton next, without implementing the tool itself.

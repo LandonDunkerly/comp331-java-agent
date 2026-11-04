@@ -1,0 +1,21 @@
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running edu.comp331.agent.DurationFormatterTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.038 s -- in edu.comp331.agent.DurationFormatterTest
+[INFO] Running edu.comp331.agent.tools.ListFilesToolTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.063 s -- in edu.comp331.agent.tools.ListFilesToolTest
+[INFO] Running edu.comp331.agent.tools.ReadFileToolTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.041 s -- in edu.comp331.agent.tools.ReadFileToolTest
+[INFO] Running edu.comp331.agent.tools.SandboxTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.067 s -- in edu.comp331.agent.tools.SandboxTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 71, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.778 s
+[INFO] Finished at: 2026-11-03T23:42:28-05:00
+[INFO] ------------------------------------------------------------------------
