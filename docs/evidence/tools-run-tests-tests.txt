@@ -1,0 +1,25 @@
+[INFO]  T E S T S
+[INFO] -------------------------------------------------------
+[INFO] Running edu.comp331.agent.DurationFormatterTest
+[INFO] Tests run: 10, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.037 s -- in edu.comp331.agent.DurationFormatterTest
+[INFO] Running edu.comp331.agent.tools.ListFilesToolTest
+[INFO] Tests run: 17, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.061 s -- in edu.comp331.agent.tools.ListFilesToolTest
+[INFO] Running edu.comp331.agent.tools.ReadFileToolTest
+[INFO] Tests run: 20, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.042 s -- in edu.comp331.agent.tools.ReadFileToolTest
+[INFO] Running edu.comp331.agent.tools.RunJavaTestsToolTest
+[INFO] Tests run: 15, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.068 s -- in edu.comp331.agent.tools.RunJavaTestsToolTest
+[INFO] Running edu.comp331.agent.tools.SandboxTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.054 s -- in edu.comp331.agent.tools.SandboxTest
+[INFO] Running edu.comp331.agent.tools.WriteFileToolTest
+[INFO] Tests run: 24, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 0.032 s -- in edu.comp331.agent.tools.WriteFileToolTest
+[INFO] 
+[INFO] Results:
+[INFO] 
+[INFO] Tests run: 110, Failures: 0, Errors: 0, Skipped: 0
+[INFO] 
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  1.956 s
+[INFO] Finished at: 2026-11-04T00:01:18-05:00
+[INFO] ------------------------------------------------------------------------

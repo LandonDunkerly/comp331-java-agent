@@ -1,0 +1,92 @@
+I’m writing a RunJavaTestsTool for a Java coding agent. It runs mvn test in a sandbox project directory and returns the exit code and the end of the output. It must not give the model arbitrary shell access. List JUnit test cases for the command allowlist (including attempts to inject extra commands or arguments), timeouts, failing tests, a missing pom.xml, Maven not being installed, and very long output. Don’t write the implementation.
+
+I’m going to inspect the existing tool patterns and the project’s test expectations so I can give you the exact allowlist and edge cases this agent tool should support without inventing unsupported behavior.
+
+I’ve narrowed it to the security contract and the exact failure modes you need to cover; I’m checking the repo’s testing style one last time so the proposed JUnit cases match the project patterns.
+
+Security contract
+The tool should enforce a fixed allowlist:
+
+command: exactly mvn
+args: exactly ["test"]
+no shell invocation at all
+no ;, &&, ||, |, >, <, $(), backticks, or any other shell metacharacters
+no extra flags such as -q, -Dtest=..., --debug, -X, or custom goals
+no passing a single shell string like "mvn test; id" to bash or sh
+This is the core rule that prevents arbitrary shell access. The check should happen before a subprocess is created, and the implementation should use a process list like ["mvn","test"], not a shell string.
+
+The repo’s testing style is consistent with SandboxTest.java and ReadFileToolTest.java.
+
+JUnit test cases to cover
+allowsExactMavenTestCommand
+
+Create a valid Maven project with pom.xml and passing tests.
+Execute the tool with the exact allowlisted command.
+Assert exit code is 0.
+Assert returned output includes the tail of Maven output, not the full log.
+rejectsCommandInjectionWithSemicolon
+
+Attempt mvn test; echo HACKED
+Assert the tool rejects it before starting Maven.
+Assert it does not execute the injected command.
+This is a direct shell-injection test.
+rejectsCommandInjectionWithAmpersand
+
+Attempt mvn test && echo HACKED
+Assert rejection and no execution of the extra command.
+rejectsCommandInjectionWithPipe
+
+Attempt mvn test | cat
+Assert rejection.
+rejectsAdditionalArguments
+
+Attempt mvn -q test
+Attempt mvn test -Dtest=SpecificTest
+Attempt mvn --debug test
+Assert all are rejected because the tool accepts only the exact allowlist.
+rejectsShellInvocationAttempts
+
+Attempt /bin/bash -lc "mvn test"
+Attempt sh -c "mvn test"
+Assert rejection; no shell is available to the model through this tool.
+timesOutWhenTestsHang
+
+Put a project in a test that sleeps or blocks indefinitely.
+Run the tool with a short timeout.
+Assert it returns a non-zero or timeout result, and the output contains the final captured lines before the timeout.
+Assert the tool does not hang forever.
+returnsNonZeroExitCodeWhenJUnitTestsFail
+
+Create a project with a failing JUnit test.
+Assert exit code is not 0.
+Assert returned output includes the failing test summary at the end, such as Tests run: ... Failures: ....
+missingPomXmlFailsBeforeRunningMaven
+
+Use a directory without a pom.xml.
+Assert the tool reports a clear error and does not invoke Maven.
+This should fail fast before any process is started.
+mavenNotInstalledReturnsClearError
+
+Run in an environment where mvn is absent from PATH.
+Assert the tool reports a Maven-not-installed condition.
+Assert exit code reflects failure, not a shell error.
+veryLongOutputIsTrimmedToTail
+Create tests that print a huge amount of output, much larger than the return limit.
+Assert the result includes the end of the output and does not explode memory or output size.
+Assert the tail still includes the final summary lines and a truncation marker if you choose to include one.
+returnsExitCodeAndTailOnFailureAsStructuredResult
+This is the “public API” contract test.
+Assert the tool returns both:
+exit code
+end-of-output summary/tail
+It should not return arbitrary stdout/stderr dumps in full.
+Recommended allowlist assertion
+The most important policy test is this:
+
+valid: ["mvn","test"]
+invalid: any other token list, including:
+["mvn","test",";","echo","pwned"]
+["bash","-lc","mvn test"]
+["mvn","-q","test"]
+["mvn","test","-DskipTests"]
+If you want, I can turn this into a concrete JUnit test class skeleton next, but without implementing the tool itself.
