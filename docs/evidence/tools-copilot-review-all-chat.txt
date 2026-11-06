@@ -1,0 +1,46 @@
+Review these Java tools for a coding agent for ways a model-supplied argument could escape the sandbox directory or run unintended commands. For each risk, give a specific example input, say which file and line allows it, and say how severe it is. Separate real risks from theoretical ones. Don’t rewrite the code.
+
+Findings
+The code is mostly careful about simple path traversal, but there is one real sandbox escape pattern: a check-then-use race against symlinks. The rest are either blocked by the code or only theoretical.
+
+Real risks
+1) Symlink TOCTOU race lets a later file operation escape the sandbox
+Example input: a model sends file_path = "logs/run.txt" while a symlink inside the sandbox is swapped or created to point at etc just after validation and before the write.
+Why it works: Sandbox.resolve() validates the path once, but the later open (Files.writeString(...)) is a separate operation. There is no atomic “open with no follow” check at the final write point.
+Code that enables it:
+Sandbox.java:19-34
+WriteFileTool.java:27-60
+Severity: High
+Why it matters: this is a real sandbox breakout vector because the validation and the actual write are separated in time.
+2) Same race can leak files or list outside directories
+Example input: file_path = "private/secret.txt" or directory = "shared" when the directory path is replaced with a symlink to an external directory between validation and reading/listing.
+Code that enables it:
+Sandbox.java:19-34
+ReadFileTool.java:22-57
+ListFilesTool.java:19-49
+Severity: Medium-High
+Why it matters: this is confidentiality exposure, not just writing outside the sandbox.
+The core issue is the same in all three tools: the path is checked once, then used later without guaranteed symlink safety across the entire operation.
+
+Theoretical / not an effective risk here
+3) Basic .. traversal or absolute-path escape is blocked
+Example input: file_path = "../../../etc/passwd" or file_path = "/etc/passwd"
+Code that prevents it:
+Sandbox.java:23-26
+Severity: None in practice
+Why: the code checks target.startsWith(root) immediately after normalization, so ordinary traversal attempts are rejected before any file access happens.
+4) run_java_tests cannot be turned into arbitrary command execution from model arguments
+Example input: passing any nonempty args map to run_java_tests
+Code that prevents it:
+RunJavaTestsTool.java:39-57
+RunJavaTestsTool.java:66-92
+Severity: None from model-supplied arguments
+Why: the method rejects any argument map and hardcodes COMMAND = List.of(mavenExecutable(), "-B", "test"). There is no shell string interpolation and no user-controlled argv list.
+5) PATH hijack is only an environment-level concern, not a model-argument issue
+Example input: not from the tool args; instead, the OS environment has a malicious mvn binary earlier on PATH.
+Code involved:
+RunJavaTestsTool.java:72-77
+Severity: Theoretical / environmental
+Why: the tool executes mvn from the PATH, so a compromised environment could cause a different executable to run. But this is not something the model-supplied arguments directly control.
+Bottom line
+The real bug is the symlink race in the sandbox boundary check. The path traversal and command-injection patterns are mostly blocked by the code as written.

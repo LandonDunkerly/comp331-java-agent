@@ -1,0 +1,15 @@
+=== 1. Copilot's Sandbox versus my Sandbox ===
+symlink inside the sandbox pointing to a file outside it (escape-link)
+  Copilot's: ALLOWED  -> /tmp/repro17456518053365207731/calculator/escape-link
+  Mine:      blocked  (Path escapes the sandbox through a link: escape-link)
+absolute path with .. to a file that does not exist (/tmp/repro17456518053365207731/calculator/../../nonexistent.txt)
+  Copilot's: ALLOWED  -> /tmp/repro17456518053365207731/calculator/../../nonexistent.txt
+  Mine:      blocked  (Path is outside the sandbox: /tmp/repro17456518053365207731/calculator/../../nonexistent.txt)
+
+=== 2. Copilot's claimed symlink-plus-.. escape (outer -> outside, input outer/../secret.txt) ===
+Sandbox returned: /tmp/repro17456518053365207731/calculator/secret.txt
+Inside the sandbox root: true
+
+=== 3. Check-then-use race against WriteFileTool (10 seconds) ===
+write attempts: 351620
+files that landed outside the sandbox: 201
