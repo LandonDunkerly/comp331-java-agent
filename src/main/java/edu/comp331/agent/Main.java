@@ -1,12 +1,20 @@
    package edu.comp331.agent;
-
    import java.util.ArrayList;
    import java.util.List;
+
+   import edu.comp331.agent.tools.RunJavaTestsTool;
 
    public class Main {
         private static final String MODEL = "gemini-3.5-flash-lite";
 
        public static void main(String[] args) throws Exception {
+            if (args.length > 0 && args[0].equals("--tool-demo")) {
+            int status = ToolDemo.run(ToolDemo.DEFAULT_SANDBOX, RunJavaTestsTool.processRunner(), System.out);
+            if (status != 0) {
+                System.exit(status);
+            }
+            return;
+        }
            boolean verbose = false;
            List<String> promptWords = new ArrayList<>();
 
